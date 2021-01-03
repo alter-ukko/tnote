@@ -93,6 +93,8 @@ enum class TodoCommand {
 	LIST,
 	COMPLETE,
 	REMOVE,
+	DETAILS,
+	ALL
 }
 
 fun loadConfig() : AppConfig {
@@ -155,6 +157,20 @@ fun String.trimQuotes() = if (this.startsWith('"') && this.endsWith('"')) {
 	this.substring(1, this.length-1)
 } else {
 	this
+}
+
+fun String.rpad(len: Int) : String {
+	return if (this.length >= len) {
+		this
+	} else {
+		this+" ".repeat(len-this.length)
+	}
+}
+
+fun Int.lpad(len: Int) : String {
+	var s = "$this"
+	while (s.length < len) s = " $s"
+	return s
 }
 
 fun execBash(cmd: String, args: List<String> = listOf(), wait: Boolean = false) : Int	{

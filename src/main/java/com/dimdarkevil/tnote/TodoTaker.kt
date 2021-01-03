@@ -26,6 +26,8 @@ object TodoTaker {
 				TodoCommand.LIST -> list(dbConn)
 				TodoCommand.COMPLETE -> complete(argstr, dbConn)
 				TodoCommand.REMOVE -> remove(argstr, dbConn)
+				TodoCommand.DETAILS -> listDetails(dbConn, true)
+				TodoCommand.ALL -> listDetails(dbConn, false)
 			}
 		}	catch (e: Exception) {
 			println(e.message)
@@ -48,14 +50,28 @@ object TodoTaker {
 
 	fun list(dbConn: DbConn) {
 		val todos = getTodos(dbConn)
-		dbConn.perform { con ->
-			if (todos.isNotEmpty()) {
-				todos.forEachIndexed { idx, todo ->
-					println("${idx+1} - ${todo.txt}")
-				}
-			} else {
-				println("no incomplete todos")
+		if (todos.isNotEmpty()) {
+			todos.forEachIndexed { idx, todo ->
+				println("${idx+1} - ${todo.txt}")
 			}
+		} else {
+			println("no incomplete todos")
+		}
+	}
+
+	fun listDetails(dbConn: DbConn, completeOnly: Boolean) {
+		val blankDt = "                          "
+		val incomp = "[ ]"
+		val comp = "[X]"
+		val todos = getTodos(dbConn, completeOnly)
+		if (todos.isNotEmpty()) {
+			todos.forEach{ todo ->
+				val check = if (todo.complete) comp else incomp
+				val completed = if (todo.completed.isEmpty()) blankDt else todo.completed
+				println("$check ${todo.id.lpad(10)} [${todo.created}] [${completed}] - ${todo.txt}")
+			}
+		} else {
+			println("no incomplete todos")
 		}
 	}
 
@@ -95,11 +111,13 @@ object TodoTaker {
 		}
 	}
 
-	fun getTodos(dbConn: DbConn) : List<Todo> {
+	fun getTodos(dbConn: DbConn, completeOnly: Boolean = true) : List<Todo> {
+		var qry = "SELECT id,txt,priority,complete, created, completed from todo"
+		if (completeOnly) qry = "$qry where complete<>true"
 		return dbConn.perform { con ->
 			con.createStatement().use { stmt ->
 				val tdlist = mutableListOf<Todo>()
-				stmt.executeQuery("SELECT id,txt,priority,complete, created, completed from todo where complete<>true;").use { rs ->
+				stmt.executeQuery("$qry;").use { rs ->
 					while (rs.next()) {
 						tdlist.add(loadTodoFromResultSet(rs))
 					}
