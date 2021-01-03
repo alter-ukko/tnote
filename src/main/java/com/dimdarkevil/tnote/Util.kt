@@ -58,6 +58,15 @@ data class Note(
 	var tags: List<String> = emptyList()
 )
 
+data class Todo(
+	val id: Int,
+	val txt: String,
+	val priority: Int,
+	val complete: Boolean,
+	val created: String,
+	val completed: String
+)
+
 enum class Kind {
 	ENTRY,
 	LINK,
@@ -77,6 +86,13 @@ enum class Command {
 	EDIT,
 	TAGS,
 	RETAG,
+}
+
+enum class TodoCommand {
+	ADD,
+	LIST,
+	COMPLETE,
+	REMOVE,
 }
 
 fun loadConfig() : AppConfig {
@@ -122,6 +138,8 @@ fun createDb(dbFile: File) {
 			stmt.execute("CREATE INDEX idx_notes_dt ON notes (dt);")
 			stmt.execute("CREATE TABLE tags (id INTEGER PRIMARY KEY, note_id INTEGER, tag TEXT);")
 			stmt.execute("CREATE INDEX idx_tags_tag ON tags (tag);")
+			stmt.execute("CREATE TABLE todo (id INTEGER PRIMARY KEY, txt TEXT, priority INTEGER, complete BOOLEAN, created STRING, completed STRING);")
+			stmt.execute("CREATE INDEX idx_todo_complete ON todo (complete);")
 		}
 	}
 }
@@ -176,6 +194,17 @@ fun loadTagsForNote(con: Connection, id: Int): List<String> {
 		}
 		tagList
 	}
+}
+
+fun loadTodoFromResultSet(rs: ResultSet) : Todo {
+	return Todo(
+		rs.getInt(1),
+		rs.getString(2),
+		rs.getInt(3),
+		rs.getBoolean(4),
+		rs.getString(5),
+		rs.getString(6)
+	)
 }
 
 fun noteToConsoleString(n: Note) : String {
