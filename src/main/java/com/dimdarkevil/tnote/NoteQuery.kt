@@ -1,6 +1,11 @@
 package com.dimdarkevil.tnote
 
+import org.commonmark.ext.gfm.tables.TablesExtension
+import org.commonmark.parser.Parser
+import org.commonmark.renderer.html.HtmlRenderer
 import org.docopt.Docopt
+import java.io.File
+import java.lang.StringBuilder
 import java.time.LocalDate
 import kotlin.system.exitProcess
 
@@ -96,12 +101,50 @@ object NoteQuery {
 					text.isEmpty() || n.txt.contains(text, true)
 				}
 			}
-			if (notes.isEmpty()) println("no records found")
-			notes.forEach {
-				println()
-				printNote(it)
-			}
+			if (notes.isEmpty()) {
+				println("no records found")
+			} else if (outStr.isNotEmpty()) {
+				val parser = Parser.builder().extensions(listOf(TablesExtension.create())).build()
+				val renderer = HtmlRenderer.builder().build()
 
+				val destDir = File(outStr.resolveTilde())
+				val imgDir = File(destDir, "images")
+				imgDir.mkdirs()
+				val stylesheetFile = File(destDir, "styles.css")
+				if (config.stylesheet.isNotEmpty()) {
+					File(config.stylesheet).copyTo(stylesheetFile, true)
+				} else {
+					val css = String(javaClass.getResourceAsStream("/styles.css").readAllBytes(), Charsets.UTF_8)
+					stylesheetFile.writeText(css)
+				}
+				val htmlFile = File(destDir, "notes.html")
+				val sb = StringBuilder()
+				sb.appendLine("<html>")
+				sb.appendLine("<head>")
+				sb.appendLine("""<link rel="stylesheet" href="styles.css">""")
+				sb.appendLine("</head>")
+				sb.appendLine("<body>")
+
+				notes.forEach { n ->
+					if (n.kind == Kind.IMAGE) {
+						val f = File(n.file)
+						f.copyTo(File(imgDir,f.name), true)
+					}
+					sb.appendLine("""<div class="entry" id="entry-${n.id}">""")
+					sb.appendLine(noteToHtmlString(n, parser, renderer))
+					sb.appendLine("</div>")
+				}
+
+				sb.appendLine("</body>")
+				sb.appendLine("</html>")
+				htmlFile.writeText(sb.toString(), Charsets.UTF_8)
+			} else {
+				notes.forEach { n ->
+					println()
+					println(noteToConsoleString(n))
+				}
+				println()
+			}
 		} catch (e: Exception) {
 			println(e.message)
 			exitProcess(1)

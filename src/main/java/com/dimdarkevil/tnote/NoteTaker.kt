@@ -5,8 +5,6 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
 import java.net.URL
-import java.sql.Connection
-import java.sql.ResultSet
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.*
@@ -23,6 +21,7 @@ object NoteTaker {
 		try {
 			val config = loadConfig()
 			if (args.isEmpty()) throw RuntimeException(help())
+			if (args.size == 1 && (args[0] == "-h" || args[0] == "--help")) throw RuntimeException(help())
 			// four ways this could be:
 			// command tags content
 			// command content
@@ -43,6 +42,7 @@ object NoteTaker {
 			val (storageDir, dbConn) = prep(config)
 			when (command) {
 				Command.ADD -> add(argstr, dbConn, storageDir)
+				Command.BLANK -> addBlankDoc(argstr, dbConn, storageDir, config)
 				Command.LINK -> addLink(args[1], args.drop(2).joinToString(" "), dbConn, storageDir)
 				Command.DOC -> addDocOrImage("doc", args[1], args.drop(2).joinToString(" "), dbConn, storageDir)
 				Command.IMAGE -> addDocOrImage("image", args[1], args.drop(2).joinToString(" "), dbConn, storageDir)
@@ -91,6 +91,21 @@ object NoteTaker {
 		insertEntry(dbConn, link, "", tags, content, Kind.LINK)
 	}
 
+	fun addBlankDoc(argstr: String, dbConn: DbConn, storageDir: File, config: AppConfig) {
+		val type = "doc"
+		val (pretags, content) = getTagsAndContent(argstr, type)
+		val tags = if (pretags.contains(type)) {
+			pretags
+		} else {
+			pretags.plus(type)
+		}
+		val destFile = File(storageDir, "${type}s/${UUID.randomUUID()}.md")
+		destFile.parentFile.mkdirs()
+		destFile.writeText("", Charsets.UTF_8)
+		val note = insertEntry(dbConn, destFile.path, destFile.name, tags, content, Kind.DOC)
+		execBash(config.editor, listOf(note.file))
+	}
+
 	fun addDocOrImage(type: String, filename: String, argstr: String, dbConn: DbConn, storageDir: File) {
 		val (pretags, content) = getTagsAndContent(argstr, type)
 		val tags = if (pretags.contains(type)) {
@@ -108,16 +123,17 @@ object NoteTaker {
 		insertEntry(dbConn, destFile.path, f.name, tags, content, Kind.valueOf(type.toUpperCase()))
 	}
 
-	fun insertEntry(dbConn: DbConn, file: String, origFile: String, tags: List<String>, content: String, kind: Kind) {
+	fun insertEntry(dbConn: DbConn, file: String, origFile: String, tags: List<String>, content: String, kind: Kind) : Note {
 		val today = LocalDate.now()
-		dbConn.transact { con ->
+		val now = LocalDateTime.now().toString()
+		return dbConn.perform { con ->
 			val stmt = con.prepareStatement("INSERT INTO notes (txt, dt, file, orig_file, kind, created) values(?,?,?,?,?,?);")
 			stmt.setString(1, content)
 			stmt.setString(2, "$today")
 			stmt.setString(3, file)
 			stmt.setString(4, origFile)
 			stmt.setString(5, kind.name)
-			stmt.setString(6, LocalDateTime.now().toString())
+			stmt.setString(6, now)
 			stmt.executeUpdate()
 			val rs = stmt.generatedKeys
 			rs.next()
@@ -129,6 +145,7 @@ object NoteTaker {
 					tstmt.execute()
 				}
 			}
+			Note(id, content, today, file, origFile, kind, now, tags)
 		}
 	}
 
@@ -153,8 +170,9 @@ object NoteTaker {
 		}
 		notes.forEach {
 			println()
-			printNote(it)
+			println(noteToConsoleString(it))
 		}
+		println()
 	}
 
 	fun remove(argstr: String, dbConn: DbConn, storageDir: File) {
@@ -190,7 +208,7 @@ object NoteTaker {
 			throw RuntimeException("$argstr is not an integer. usage: tn show id")
 		}
 		val note = getById(id, dbConn)
-		printNote(note)
+		println(noteToConsoleString(note))
 		when (note.kind) {
 			Kind.ENTRY -> {}
 			Kind.LINK -> execBash(config.browser, listOf(note.file))
@@ -233,7 +251,7 @@ object NoteTaker {
 				throw RuntimeException("tags improperly formatted")
 			}
 			val dt = LocalDate.parse(dateStr)
-			val tags = tagsStr.substring(1, tagsStr.length-1).split(" ").map { it.trim().toLowerCase() }
+			val tags = tagsStr.substring(1, tagsStr.length-1).split(",").map { it.trim().toLowerCase() }
 			val tagsSame = (
 				tags.size == note.tags.size &&
 				tags.all { note.tags.contains(it) } &&
@@ -312,17 +330,20 @@ object NoteTaker {
 
 	fun help() : String {
 		return """
+			tn version ${Version.version}
 			usage:
-			tn content
-			tn [tags] content
-			tn add content
-			tn add [tags] content
-			tn link url
-			tn link url [tags] content
+			tn note
+			tn [tags] note
+			tn add note
+			tn add [tags] note
+			tn blank note
+			tn blank [tags] note
 			tn doc filename
-			tn doc filename [tags] content
+			tn doc filename [tags] note
+			tn link url
+			tn link url [tags] note
 			tn image filename
-			tn image filename [tags] content
+			tn image filename [tags] note
 			tn tail {num recs}
 			tn remove id
 			tn show id
