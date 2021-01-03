@@ -1,0 +1,10 @@
+target/
+deploy/
+.idea/
+*.iml
+.DS_Store
+input/
+output/
+data/
+test.csv
+test.sorbet

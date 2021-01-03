@@ -1,0 +1,4 @@
+mvn clean
+mvn package
+cd target
+tar xvf tnote.tgz
