@@ -63,7 +63,7 @@ object NoteTaker {
 		val closeBracketPos = argstr.indexOfFirst { it == ']' }
 		val hasTags = argstr.startsWith("[") && closeBracketPos > 0
 		val tags = if (hasTags) {
-			argstr.substring(1, closeBracketPos).trim().split(SPACE_RE).map { it.trim().toLowerCase() }
+			argstr.substring(1, closeBracketPos).trim().split(SPACE_OR_COMMA_RE).map { it.trim().toLowerCase() }
 		} else {
 			listOf(defTag)
 		}
@@ -251,7 +251,7 @@ object NoteTaker {
 				throw RuntimeException("tags improperly formatted")
 			}
 			val dt = LocalDate.parse(dateStr)
-			val tags = tagsStr.substring(1, tagsStr.length-1).split(",").map { it.trim().toLowerCase() }
+			val tags = tagsStr.substring(1, tagsStr.length-1).split(SPACE_OR_COMMA_RE).map { it.trim().toLowerCase() }
 			val tagsSame = (
 				tags.size == note.tags.size &&
 				tags.all { note.tags.contains(it) } &&
@@ -304,8 +304,8 @@ object NoteTaker {
 		val newtag = tagChanges[1]
 		dbConn.perform { con ->
 			con.prepareStatement("UPDATE tags set tag=? WHERE tag=?").use { stmt ->
-				stmt.setString(1, oldtag)
-				stmt.setString(2, newtag)
+				stmt.setString(1, newtag)
+				stmt.setString(2, oldtag)
 				stmt.execute()
 			}
 		}

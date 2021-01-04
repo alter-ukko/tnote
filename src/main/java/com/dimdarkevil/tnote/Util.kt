@@ -37,6 +37,7 @@ const val ANSI_WHITE_BG = "\u001B[47m"
 
 val HOME = System.getProperty("user.home")
 val SPACE_RE = Regex("\\s+")
+val SPACE_OR_COMMA_RE  = Regex("(\\s*,\\s*|\\s+)")
 
 data class AppConfig(
 	val storage: String,
