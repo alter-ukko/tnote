@@ -54,7 +54,8 @@ object NoteTaker {
 				Command.RETAG -> retag(argstr, dbConn, storageDir)
 			}
 		} catch (e: Exception) {
-			println(e.message)
+			//println(e.message)
+			log.error(e.message, e)
 			exitProcess(1)
 		}
 	}
