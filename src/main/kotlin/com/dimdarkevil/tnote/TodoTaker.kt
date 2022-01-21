@@ -14,9 +14,9 @@ object TodoTaker {
 				exitProcess(0)
 			}
 			val config = loadConfig()
-			val (storageDir, dbConn) = prep(config)
+			val (_, dbConn) = prep(config)
 			val command = try {
-				TodoCommand.valueOf(args[0].toUpperCase())
+				TodoCommand.valueOf(args[0].uppercase())
 			} catch (e: Exception) {
 				throw RuntimeException(help())
 			}

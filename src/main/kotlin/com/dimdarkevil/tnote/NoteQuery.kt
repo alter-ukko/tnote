@@ -36,11 +36,11 @@ object NoteQuery {
 		}
 		//println("opts is $opts")
 		val config = loadConfig()
-		val (storageDir, dbConn) = prep(config)
+		val (_, dbConn) = prep(config)
 		try {
 			val text = (opts["--text"] as? String)?.trim() ?: ""
 			val tags = (opts["--tags"] as? String)?.let { tagStr ->
-				tagStr.split(",").map { it.trim().toLowerCase() }.filter { it.isNotEmpty() }
+				tagStr.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
 			} ?: emptyList()
 			val startDate = (opts["--start"] as? String)?.let { sdStr ->
 				LocalDate.parse(sdStr).toString()
@@ -50,7 +50,7 @@ object NoteQuery {
 			} ?: ""
 			val kinds = (opts["--kinds"] as? String)?.let { kindStr ->
 				kindStr.split(",")
-					.map { it.trim().toUpperCase() }
+					.map { it.trim().uppercase() }
 					.filter { it.isNotEmpty() }
 					.map { Kind.valueOf(it) }
 			} ?: emptyList()
