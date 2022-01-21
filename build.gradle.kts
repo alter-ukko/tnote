@@ -23,4 +23,29 @@ dependencies {
 
 application {
     mainClass.set("com.dimdarkevil.tnote.NoteTaker")
+    applicationName = "tn"
+}
+
+val todoStartScript by tasks.register("todoStartScript", CreateStartScripts::class) {
+    mainClass.set("com.dimdarkevil.tnode.TodoTaker")
+    applicationName = "td"
+    outputDir = file("build/scripts")
+    classpath = project.tasks.getAt(JavaPlugin.JAR_TASK_NAME).outputs.files.plus(project.configurations.getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME))
+}
+
+val noteQueryStartScript by tasks.register("noteQueryStartScript", CreateStartScripts::class) {
+    mainClass.set("com.dimdarkevil.tnode.NoteQuery")
+    applicationName = "tnq"
+    outputDir = file("build/scripts")
+    classpath = project.tasks.getAt(JavaPlugin.JAR_TASK_NAME).outputs.files.plus(project.configurations.getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME))
+}
+
+tasks.named("distTar") {
+    dependsOn("todoStartScript")
+    dependsOn("noteQueryStartScript")
+}
+
+tasks.named("distZip") {
+    dependsOn("todoStartScript")
+    dependsOn("noteQueryStartScript")
 }
