@@ -35,7 +35,7 @@ const val ANSI_PURPLE_BG = "\u001B[45m"
 const val ANSI_CYAN_BG = "\u001B[46m"
 const val ANSI_WHITE_BG = "\u001B[47m"
 
-val HOME = System.getProperty("user.home")
+val HOME = System.getProperty("user.home") ?: throw RuntimeException("Can't get 'user.home' system property")
 val SPACE_RE = Regex("\\s+")
 val SPACE_OR_COMMA_RE  = Regex("(\\s*,\\s*|\\s+)")
 
@@ -195,7 +195,7 @@ fun loadNoteFromResultSet(rs: ResultSet) : Note {
 		dt = LocalDate.parse(rs.getString(3)),
 		file = rs.getString(4),
 		origFile = rs.getString(5),
-		kind = Kind.valueOf(rs.getString(6).toUpperCase()),
+		kind = Kind.valueOf(rs.getString(6).uppercase()),
 		created = rs.getString(7)
 	)
 }

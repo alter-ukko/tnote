@@ -28,7 +28,7 @@ object NoteTaker {
 			// tags content
 			// content
 			// for the last two, the assumed command is "add"
-			val firstarg = args[0].toUpperCase()
+			val firstarg = args[0].uppercase()
 			val hasCommand = (cmds.contains(firstarg))
 			val command = if (hasCommand) Command.valueOf(firstarg) else Command.ADD
 			if (command == Command.LINK && args.size < 2) {
@@ -41,17 +41,17 @@ object NoteTaker {
 			//println("command is $command, argstr is $argstr")
 			val (storageDir, dbConn) = prep(config)
 			when (command) {
-				Command.ADD -> add(argstr, dbConn, storageDir)
+				Command.ADD -> add(argstr, dbConn)
 				Command.BLANK -> addBlankDoc(argstr, dbConn, storageDir, config)
-				Command.LINK -> addLink(args[1], args.drop(2).joinToString(" "), dbConn, storageDir)
+				Command.LINK -> addLink(args[1], args.drop(2).joinToString(" "), dbConn)
 				Command.DOC -> addDocOrImage("doc", args[1], args.drop(2).joinToString(" "), dbConn, storageDir)
 				Command.IMAGE -> addDocOrImage("image", args[1], args.drop(2).joinToString(" "), dbConn, storageDir)
-				Command.TAIL -> tail(argstr, dbConn, storageDir)
-				Command.REMOVE -> remove(argstr, dbConn, storageDir)
-				Command.SHOW -> show(argstr, dbConn, storageDir, config)
-				Command.EDIT -> edit(argstr, dbConn, storageDir, config)
-				Command.TAGS -> listTags(argstr, dbConn, storageDir)
-				Command.RETAG -> retag(argstr, dbConn, storageDir)
+				Command.TAIL -> tail(argstr, dbConn)
+				Command.REMOVE -> remove(argstr, dbConn)
+				Command.SHOW -> show(argstr, dbConn, config)
+				Command.EDIT -> edit(argstr, dbConn)
+				Command.TAGS -> listTags(dbConn)
+				Command.RETAG -> retag(argstr, dbConn)
 			}
 		} catch (e: Exception) {
 			println(e.message)
@@ -64,7 +64,7 @@ object NoteTaker {
 		val closeBracketPos = argstr.indexOfFirst { it == ']' }
 		val hasTags = argstr.startsWith("[") && closeBracketPos > 0
 		val tags = if (hasTags) {
-			argstr.substring(1, closeBracketPos).trim().split(SPACE_OR_COMMA_RE).map { it.trim().toLowerCase() }
+			argstr.substring(1, closeBracketPos).trim().split(SPACE_OR_COMMA_RE).map { it.trim().lowercase() }
 		} else {
 			listOf(defTag)
 		}
@@ -76,19 +76,19 @@ object NoteTaker {
 		return Pair(tags, content)
 	}
 
-	fun add(argstr: String, dbConn: DbConn, storageDir: File) {
+	fun add(argstr: String, dbConn: DbConn) {
 		val (tags, content) = getTagsAndContent(argstr, "none")
 		insertEntry(dbConn, "", "", tags, content, Kind.ENTRY)
 	}
 
-	fun addLink(link: String, argstr: String, dbConn: DbConn, storageDir: File) {
+	fun addLink(link: String, argstr: String, dbConn: DbConn) {
 		val (pretags, content) = getTagsAndContent(argstr, "link")
 		val tags = if (pretags.contains("link")) {
 			pretags
 		} else {
 			pretags.plus("link")
 		}
-		val url = URL(link)
+		URL(link) // is this here so that we bomb if it's not a valid link or something?
 		insertEntry(dbConn, link, "", tags, content, Kind.LINK)
 	}
 
@@ -121,7 +121,7 @@ object NoteTaker {
 		destFile.parentFile.mkdirs()
 		f.copyTo(destFile)
 		if (!destFile.exists()) throw IOException("Error writing file from ${f.path}")
-		insertEntry(dbConn, destFile.path, f.name, tags, content, Kind.valueOf(type.toUpperCase()))
+		insertEntry(dbConn, destFile.path, f.name, tags, content, Kind.valueOf(type.uppercase()))
 	}
 
 	fun insertEntry(dbConn: DbConn, file: String, origFile: String, tags: List<String>, content: String, kind: Kind) : Note {
@@ -150,7 +150,7 @@ object NoteTaker {
 		}
 	}
 
-	fun tail(argstr: String, dbConn: DbConn, storageDir: File) {
+	fun tail(argstr: String, dbConn: DbConn) {
 		val num = try {
 			argstr.trim().toInt()
 		} catch (e: Exception) {
@@ -176,7 +176,7 @@ object NoteTaker {
 		println()
 	}
 
-	fun remove(argstr: String, dbConn: DbConn, storageDir: File) {
+	fun remove(argstr: String, dbConn: DbConn) {
 		val id = try {
 			argstr.trim().toInt()
 		} catch (e: Exception) {
@@ -202,7 +202,7 @@ object NoteTaker {
 		}
 	}
 
-	fun show(argstr: String, dbConn: DbConn, storageDir: File, config: AppConfig) {
+	fun show(argstr: String, dbConn: DbConn, config: AppConfig) {
 		val id = try {
 			argstr.trim().toInt()
 		} catch (e: Exception) {
@@ -218,7 +218,7 @@ object NoteTaker {
 		}
 	}
 
-	fun edit(argstr: String, dbConn: DbConn, storageDir: File, config: AppConfig) {
+	fun edit(argstr: String, dbConn: DbConn) {
 		val editor = if (System.getenv("EDITOR") != null) {
 			System.getenv("EDITOR")
 		} else {
@@ -252,7 +252,7 @@ object NoteTaker {
 				throw RuntimeException("tags improperly formatted")
 			}
 			val dt = LocalDate.parse(dateStr)
-			val tags = tagsStr.substring(1, tagsStr.length-1).split(SPACE_OR_COMMA_RE).map { it.trim().toLowerCase() }
+			val tags = tagsStr.substring(1, tagsStr.length-1).split(SPACE_OR_COMMA_RE).map { it.trim().lowercase() }
 			val tagsSame = (
 				tags.size == note.tags.size &&
 				tags.all { note.tags.contains(it) } &&
@@ -284,7 +284,7 @@ object NoteTaker {
 		}
 	}
 
-	fun listTags(argstr: String, dbConn: DbConn, storageDir: File) {
+	fun listTags(dbConn: DbConn) {
 		dbConn.perform { con ->
 			con.createStatement().use { stmt ->
 				stmt.executeQuery("SELECT DISTINCT tag FROM tags ORDER BY tag").use { rs ->
@@ -296,8 +296,8 @@ object NoteTaker {
 		}
 	}
 
-	fun retag(argstr: String, dbConn: DbConn, storageDir: File) {
-		val tagChanges = argstr.split(SPACE_RE).map { it.toLowerCase().trim() }
+	fun retag(argstr: String, dbConn: DbConn) {
+		val tagChanges = argstr.split(SPACE_RE).map { it.lowercase().trim() }
 		if (tagChanges.size != 2) {
 			throw RuntimeException("usage: nt retag oldtag newtag")
 		}
