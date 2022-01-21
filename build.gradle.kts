@@ -39,14 +39,14 @@ distributions {
     }
 }
 
-val todoStartScript by tasks.register("todoStartScript", CreateStartScripts::class) {
+task<CreateStartScripts>("todoStartScript") {
     mainClass.set("com.dimdarkevil.tnote.TodoTaker")
     applicationName = "td"
     outputDir = file("build/scripts")
     classpath = project.tasks.getAt(JavaPlugin.JAR_TASK_NAME).outputs.files.plus(project.configurations.getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME))
 }
 
-val noteQueryStartScript by tasks.register("noteQueryStartScript", CreateStartScripts::class) {
+task<CreateStartScripts>("noteQueryStartScript") {
     mainClass.set("com.dimdarkevil.tnote.NoteQuery")
     applicationName = "tnq"
     outputDir = file("build/scripts")
