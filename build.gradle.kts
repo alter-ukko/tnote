@@ -21,20 +21,33 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
+tasks.withType<Jar> {
+    archiveFileName.set("${project.name}.jar")
+}
+
 application {
     mainClass.set("com.dimdarkevil.tnote.NoteTaker")
     applicationName = "tn"
 }
 
+distributions {
+    main {
+        distributionBaseName.set(project.name)
+        contents {
+            from("README.md")
+        }
+    }
+}
+
 val todoStartScript by tasks.register("todoStartScript", CreateStartScripts::class) {
-    mainClass.set("com.dimdarkevil.tnode.TodoTaker")
+    mainClass.set("com.dimdarkevil.tnote.TodoTaker")
     applicationName = "td"
     outputDir = file("build/scripts")
     classpath = project.tasks.getAt(JavaPlugin.JAR_TASK_NAME).outputs.files.plus(project.configurations.getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME))
 }
 
 val noteQueryStartScript by tasks.register("noteQueryStartScript", CreateStartScripts::class) {
-    mainClass.set("com.dimdarkevil.tnode.NoteQuery")
+    mainClass.set("com.dimdarkevil.tnote.NoteQuery")
     applicationName = "tnq"
     outputDir = file("build/scripts")
     classpath = project.tasks.getAt(JavaPlugin.JAR_TASK_NAME).outputs.files.plus(project.configurations.getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME))
