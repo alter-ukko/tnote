@@ -25,6 +25,16 @@ tasks.withType<Jar> {
     archiveFileName.set("${project.name}.jar")
 }
 
+tasks.withType<ProcessResources> {
+    eachFile {
+        if (name == "version.properties") {
+            filter { line ->
+                line.replace("%project.version%", "${project.version}")
+            }
+        }
+    }
+}
+
 application {
     mainClass.set("com.dimdarkevil.tnote.NoteTaker")
     applicationName = "tn"
