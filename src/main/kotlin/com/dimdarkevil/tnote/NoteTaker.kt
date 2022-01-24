@@ -9,6 +9,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.*
 import kotlin.Exception
+import kotlin.math.absoluteValue
 import kotlin.system.exitProcess
 
 
@@ -52,6 +53,7 @@ object NoteTaker {
 				Command.EDIT -> edit(argstr, dbConn)
 				Command.TAGS -> listTags(dbConn)
 				Command.RETAG -> retag(argstr, dbConn)
+				Command.REFLOG -> reflog()
 			}
 		} catch (e: Exception) {
 			println(e.message)
@@ -312,6 +314,11 @@ object NoteTaker {
 		}
 	}
 
+	fun reflog() {
+		val rsp = reflogResponses[Random(System.currentTimeMillis()).nextInt().absoluteValue % reflogResponses.size]
+		println(rsp)
+	}
+
 	fun getById(id: Int, dbConn: DbConn) : Note {
 		return dbConn.perform { con ->
 			val note = con.prepareStatement("SELECT id,txt,dt,file,orig_file,kind,created from notes where id=?;").use { stmt ->
@@ -350,6 +357,7 @@ object NoteTaker {
 			tn show id
 			tn edit id
 			tn retag oldtag newtag
+			tn reflog
 		""".trimIndent()
 	}
 

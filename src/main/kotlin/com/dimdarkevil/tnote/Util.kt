@@ -87,6 +87,7 @@ enum class Command {
 	EDIT,
 	TAGS,
 	RETAG,
+	REFLOG,
 }
 
 enum class TodoCommand {
@@ -97,6 +98,14 @@ enum class TodoCommand {
 	DETAILS,
 	ALL
 }
+
+val reflogResponses = listOf(
+	"ow.",
+	"ouch.",
+	"ow, that hurt.",
+	"ow. stop.",
+	"ouch. please stop.",
+)
 
 fun loadConfig() : AppConfig {
 	val propFile = File(HOME, ".tnote")
