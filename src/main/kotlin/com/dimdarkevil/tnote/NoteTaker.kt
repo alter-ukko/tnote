@@ -43,7 +43,7 @@ object NoteTaker {
 			val (storageDir, dbConn) = prep(config)
 			when (command) {
 				Command.ADD -> add(argstr, dbConn)
-				Command.BLANK -> addBlankDoc(argstr, dbConn, storageDir, config)
+				Command.BLANK -> addBlankDoc(argstr, dbConn, storageDir, config, storageDir)
 				Command.LINK -> addLink(args[1], args.drop(2).joinToString(" "), dbConn)
 				Command.DOC -> addDocOrImage("doc", args[1], args.drop(2).joinToString(" "), dbConn, storageDir)
 				Command.IMAGE -> addDocOrImage("image", args[1], args.drop(2).joinToString(" "), dbConn, storageDir)
@@ -94,7 +94,7 @@ object NoteTaker {
 		insertEntry(dbConn, link, "", tags, content, Kind.LINK)
 	}
 
-	fun addBlankDoc(argstr: String, dbConn: DbConn, storageDir: File, config: AppConfig) {
+	fun addBlankDoc(argstr: String, dbConn: DbConn, storageDir: File, config: AppConfig, storageDir: File) {
 		val type = "doc"
 		val (pretags, content) = getTagsAndContent(argstr, type)
 		val tags = if (pretags.contains(type)) {
@@ -107,7 +107,7 @@ object NoteTaker {
 		destFile.parentFile.mkdirs()
 		destFile.writeText("", Charsets.UTF_8)
 		val note = insertEntry(dbConn, relativeFilename, destFile.name, tags, content, Kind.DOC)
-		execBash(config.editor, listOf(note.file))
+		execBash(config.editor, listOf(File(storageDir, note.file).path))
 	}
 
 	fun addDocOrImage(type: String, filename: String, argstr: String, dbConn: DbConn, storageDir: File) {
