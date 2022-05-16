@@ -49,7 +49,7 @@ object NoteTaker {
 				Command.IMAGE -> addDocOrImage("image", args[1], args.drop(2).joinToString(" "), dbConn, storageDir)
 				Command.TAIL -> tail(argstr, dbConn)
 				Command.REMOVE -> remove(argstr, dbConn)
-				Command.SHOW -> show(argstr, dbConn, config)
+				Command.SHOW -> show(argstr, dbConn, config, storageDir)
 				Command.EDIT -> edit(argstr, dbConn)
 				Command.TAGS -> listTags(dbConn)
 				Command.RETAG -> retag(argstr, dbConn)
@@ -102,10 +102,11 @@ object NoteTaker {
 		} else {
 			pretags.plus(type)
 		}
-		val destFile = File(storageDir, "${type}s/${UUID.randomUUID()}.md")
+		val relativeFilename = "${type}s/${UUID.randomUUID()}.md"
+		val destFile = File(storageDir, relativeFilename)
 		destFile.parentFile.mkdirs()
 		destFile.writeText("", Charsets.UTF_8)
-		val note = insertEntry(dbConn, destFile.path, destFile.name, tags, content, Kind.DOC)
+		val note = insertEntry(dbConn, relativeFilename, destFile.name, tags, content, Kind.DOC)
 		execBash(config.editor, listOf(note.file))
 	}
 
@@ -119,11 +120,12 @@ object NoteTaker {
 		val f = File(filename.resolveTilde())
 		if (!f.exists()) throw RuntimeException("File does not exist: ${f.path}")
 		if (f.isDirectory) throw RuntimeException("File is a directory: ${f.path}")
-		val destFile = File(storageDir, "${type}s/${UUID.randomUUID()}.${f.extension}")
+		val relativeFilename = "${type}s/${UUID.randomUUID()}.${f.extension}"
+		val destFile = File(storageDir, relativeFilename)
 		destFile.parentFile.mkdirs()
 		f.copyTo(destFile)
 		if (!destFile.exists()) throw IOException("Error writing file from ${f.path}")
-		insertEntry(dbConn, destFile.path, f.name, tags, content, Kind.valueOf(type.uppercase()))
+		insertEntry(dbConn, relativeFilename, f.name, tags, content, Kind.valueOf(type.uppercase()))
 	}
 
 	fun insertEntry(dbConn: DbConn, file: String, origFile: String, tags: List<String>, content: String, kind: Kind) : Note {
@@ -204,7 +206,7 @@ object NoteTaker {
 		}
 	}
 
-	fun show(argstr: String, dbConn: DbConn, config: AppConfig) {
+	fun show(argstr: String, dbConn: DbConn, config: AppConfig, storageDir: File) {
 		val id = try {
 			argstr.trim().toInt()
 		} catch (e: Exception) {
@@ -215,8 +217,8 @@ object NoteTaker {
 		when (note.kind) {
 			Kind.ENTRY -> {}
 			Kind.LINK -> execBash(config.browser, listOf(note.file))
-			Kind.DOC -> execBash(config.editor, listOf(note.file))
-			Kind.IMAGE -> execBash(config.viewer, listOf(note.file))
+			Kind.DOC -> execBash(config.editor, listOf(File(storageDir, note.file).path))
+			Kind.IMAGE -> execBash(config.viewer, listOf(File(storageDir, note.file).path))
 		}
 	}
 
