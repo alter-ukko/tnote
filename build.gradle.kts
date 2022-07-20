@@ -3,10 +3,6 @@ plugins {
     application
 }
 
-group = "com.dimdarkevil"
-version = "1.1-SNAPSHOT"
-description = "Command-line note taking app"
-
 repositories {
     mavenCentral()
 }
@@ -63,12 +59,13 @@ task<CreateStartScripts>("noteQueryStartScript") {
     classpath = project.tasks.getAt(JavaPlugin.JAR_TASK_NAME).outputs.files.plus(project.configurations.getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME))
 }
 
-tasks.named("distTar") {
+tasks.distTar {
+    compression = Compression.GZIP
     dependsOn("todoStartScript")
     dependsOn("noteQueryStartScript")
 }
 
-tasks.named("distZip") {
+tasks.distZip {
     dependsOn("todoStartScript")
     dependsOn("noteQueryStartScript")
 }

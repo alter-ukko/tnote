@@ -15,39 +15,30 @@ import kotlin.system.exitProcess
 
 object NoteTaker {
 	private val log = LoggerFactory.getLogger(NoteTaker::class.java)
-	private val cmds = Command.values().map { it.name }.toSet()
+	private val helpCmds = setOf("-h", "--help", "help")
 
 	@JvmStatic
 	fun main(args: Array<String>) {
 		try {
 			val config = loadConfig()
-			if (args.isEmpty()) throw RuntimeException(help())
-			if (args.size == 1 && (args[0] == "-h" || args[0] == "--help")) throw RuntimeException(help())
-			// four ways this could be:
+			// if no args or help command, we want to exit with status code 0
+			if (args.isEmpty() || args[0].lowercase() in helpCmds) throw UsageException(help())
+			// if an invalid command was used, we want to exit with status code 1
+			if (args[0].uppercase() !in Command.values().map { it.name }.toSet()) throw RuntimeException(help())
+			// two ways this could be:
 			// command tags content
 			// command content
-			// tags content
-			// content
-			// for the last two, the assumed command is "add"
-			val firstarg = args[0].uppercase()
-			val hasCommand = (cmds.contains(firstarg))
-			val command = if (hasCommand) Command.valueOf(firstarg) else Command.ADD
-			if (command == Command.LINK && args.size < 2) {
-				throw RuntimeException("must supply a link")
-			}
-			if (command == Command.DOC && args.size < 2) {
-				throw RuntimeException("must supply a filename")
-			}
-			val argstr = if (hasCommand) args.drop(1).joinToString(" ") else args.joinToString(" ")
+			val command = Command.valueOf(args[0].uppercase())
+			val argstr = args.drop(1).joinToString(" ").trim()
 			//println("command is $command, argstr is $argstr")
 			val (storageDir, dbConn) = prep(config)
 			when (command) {
 				Command.ADD -> add(argstr, dbConn)
-				Command.BLANK -> addBlankDoc(argstr, dbConn, storageDir, config, storageDir)
+				Command.BLANK -> addBlankDoc(argstr, dbConn, storageDir, config)
 				Command.LINK -> addLink(args[1], args.drop(2).joinToString(" "), dbConn)
 				Command.DOC -> addDocOrImage("doc", args[1], args.drop(2).joinToString(" "), dbConn, storageDir)
 				Command.IMAGE -> addDocOrImage("image", args[1], args.drop(2).joinToString(" "), dbConn, storageDir)
-				Command.TAIL -> tail(argstr, dbConn)
+				Command.TAIL -> tail(argstr, dbConn, storageDir)
 				Command.REMOVE -> remove(argstr, dbConn)
 				Command.SHOW -> show(argstr, dbConn, config, storageDir)
 				Command.EDIT -> edit(argstr, dbConn)
@@ -55,6 +46,8 @@ object NoteTaker {
 				Command.RETAG -> retag(argstr, dbConn)
 				Command.REFLOG -> reflog()
 			}
+		} catch (ue: UsageException) {
+			println(ue.message)
 		} catch (e: Exception) {
 			println(e.message)
 			//log.error(e.message, e)
@@ -80,11 +73,13 @@ object NoteTaker {
 
 	fun add(argstr: String, dbConn: DbConn) {
 		val (tags, content) = getTagsAndContent(argstr, "none")
+		if (content.isEmpty()) throw RuntimeException("no note was provided")
 		insertEntry(dbConn, "", "", tags, content, Kind.ENTRY)
 	}
 
 	fun addLink(link: String, argstr: String, dbConn: DbConn) {
 		val (pretags, content) = getTagsAndContent(argstr, "link")
+		if (link.isEmpty()) throw RuntimeException("must supply a link")
 		val tags = if (pretags.contains("link")) {
 			pretags
 		} else {
@@ -94,7 +89,7 @@ object NoteTaker {
 		insertEntry(dbConn, link, "", tags, content, Kind.LINK)
 	}
 
-	fun addBlankDoc(argstr: String, dbConn: DbConn, storageDir: File, config: AppConfig, storageDir: File) {
+	fun addBlankDoc(argstr: String, dbConn: DbConn, storageDir: File, config: AppConfig) {
 		val type = "doc"
 		val (pretags, content) = getTagsAndContent(argstr, type)
 		val tags = if (pretags.contains(type)) {
@@ -112,6 +107,7 @@ object NoteTaker {
 
 	fun addDocOrImage(type: String, filename: String, argstr: String, dbConn: DbConn, storageDir: File) {
 		val (pretags, content) = getTagsAndContent(argstr, type)
+		if (filename.isEmpty()) throw RuntimeException("must supply a $type")
 		val tags = if (pretags.contains(type)) {
 			pretags
 		} else {
@@ -154,7 +150,7 @@ object NoteTaker {
 		}
 	}
 
-	fun tail(argstr: String, dbConn: DbConn) {
+	fun tail(argstr: String, dbConn: DbConn, storageDir: File) {
 		val num = try {
 			argstr.trim().toInt()
 		} catch (e: Exception) {
@@ -173,11 +169,27 @@ object NoteTaker {
 			nlist.forEach { n -> n.tags = loadTagsForNote(con, n.id) }
 			nlist.reversed()
 		}
-		notes.forEach {
+		notes.map {
+			if (it.isTextFileWithNoNote()) {
+				it.copy(txt = readFirstLineOfTextFile(File(storageDir, it.file)))
+			} else {
+				it
+			}
+		}.forEach {
 			println()
 			println(noteToConsoleString(it))
 		}
 		println()
+	}
+
+	fun Note.isTextFileWithNoNote() = (kind == Kind.DOC && txt.isEmpty() && this.file.substringAfterLast(".").lowercase() == "md")
+
+	fun readFirstLineOfTextFile(f: File) : String {
+		return FileInputStream(f).use { fin ->
+			Scanner(fin).use { scanner ->
+				if (scanner.hasNext()) scanner.next() else ""
+			}
+		}
 	}
 
 	fun remove(argstr: String, dbConn: DbConn) {
@@ -342,8 +354,6 @@ object NoteTaker {
 		return """
 			tn version ${Version.version}
 			usage:
-			tn note
-			tn [tags] note
 			tn add note
 			tn add [tags] note
 			tn blank note
@@ -359,6 +369,7 @@ object NoteTaker {
 			tn show id
 			tn edit id
 			tn retag oldtag newtag
+			tn help
 			tn reflog
 		""".trimIndent()
 	}
